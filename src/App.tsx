@@ -6,9 +6,9 @@ import Rutas from './Router/Rutas';
 function App() {
 
   return (
-    <>
+    <div className="app-shell">
      <Rutas />
-    </>
+    </div>
   )
 }
 
