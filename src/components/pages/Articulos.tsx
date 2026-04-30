@@ -1,39 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Articulo } from '../../types/articulo';
+import { supabase } from '../../lib/supabase';
 
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? '/api';
 const fallbackImage = 'https://images.stockcake.com/public/7/d/e/7de62cd2-e218-47a9-9532-c1fe87686474_medium/city-night-contemplation-stockcake.jpg';
-
-const normalizarArticulo = (articulo: any): Articulo => ({
-  id: articulo.id ?? articulo._id ?? Date.now(),
-  titulo: articulo.titulo ?? 'Sin titulo',
-  contenido: articulo.contenido ?? '',
-  fecha: articulo.fecha ?? new Date().toISOString(),
-  imagen: articulo.imagen ?? fallbackImage,
-});
-
-async function obtenerArticulos(): Promise<Articulo[]> {
-  const respuesta = await fetch(`${apiBaseUrl}/articulos`);
-  if (!respuesta.ok) throw new Error('No se pudieron cargar los artículos');
-  const datos = await respuesta.json();
-  const articulos = Array.isArray(datos.result) ? datos.result : (Array.isArray(datos.articulos) ? datos.articulos : []);
-  return articulos.map(normalizarArticulo);
-}
-
-async function eliminarArticulo(id: number): Promise<void> {
-  const respuesta = await fetch(`${apiBaseUrl}/articulos/${id}`, { method: 'DELETE' });
-  if (!respuesta.ok) throw new Error('No se pudo eliminar el articulo.');
-}
-
-async function actualizarArticulo(id: number, payload: any): Promise<Articulo> {
-  const respuesta = await fetch(`${apiBaseUrl}/articulos/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!respuesta.ok) throw new Error('No se pudo actualizar el articulo.');
-  return normalizarArticulo({ ...payload, id });
-}
 
 const Articulos = () => {
   const [articulos, setArticulos] = useState<Articulo[]>([]);
@@ -44,12 +13,23 @@ const Articulos = () => {
   const [articuloAEditar, setArticuloAEditar] = useState<Articulo | null>(null);
   const [editForm, setEditForm] = useState({ titulo: '', contenido: '', imagen: '', fecha: '' });
 
-  const cargarDatos = () => {
+  const cargarDatos = async () => {
     setCargando(true);
-    obtenerArticulos()
-      .then((respuesta) => { setArticulos(respuesta); setError(''); })
-      .catch(() => setError('No fue posible cargar los articulos.'))
-      .finally(() => setCargando(false));
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('articulos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setArticulos(data || []);
+      setError('');
+    } catch (err) {
+      console.error('Error cargando articulos:', err);
+      setError('No fue posible cargar los articulos.');
+    } finally {
+      setCargando(false);
+    }
   };
 
   useEffect(() => { cargarDatos(); }, []);
@@ -57,19 +37,42 @@ const Articulos = () => {
   const handleDeleteConfirm = async () => {
     if (!articuloAEliminar) return;
     try {
-      await eliminarArticulo(articuloAEliminar.id);
+      const { error: deleteError } = await supabase
+        .from('articulos')
+        .delete()
+        .eq('id', articuloAEliminar.id);
+
+      if (deleteError) throw deleteError;
+      
       setArticuloAEliminar(null);
       cargarDatos();
-    } catch { alert("Error eliminando articulo"); }
+    } catch (err) { 
+      console.error('Error eliminando:', err);
+      alert("Error eliminando articulo"); 
+    }
   };
 
   const handleEditConfirm = async () => {
     if (!articuloAEditar) return;
     try {
-      await actualizarArticulo(articuloAEditar.id, editForm);
+      const { error: updateError } = await supabase
+        .from('articulos')
+        .update({
+          titulo: editForm.titulo,
+          contenido: editForm.contenido,
+          imagen: editForm.imagen,
+          fecha: editForm.fecha
+        })
+        .eq('id', articuloAEditar.id);
+
+      if (updateError) throw updateError;
+
       setArticuloAEditar(null);
       cargarDatos();
-    } catch { alert("Error actualizando articulo"); }
+    } catch (err) { 
+      console.error('Error actualizando:', err);
+      alert("Error actualizando articulo"); 
+    }
   };
 
   const openEdit = (a: Articulo) => {

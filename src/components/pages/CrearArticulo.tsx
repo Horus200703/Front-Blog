@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-const fallbackImage = 'https://images.stockcake.com/public/7/d/e/7de62cd2-e218-47a9-9532-c1fe87686474_medium/city-night-contemplation-stockcake.jpg';
-const apiBaseUrl = import.meta.env.VITE_API_URL ?? '/api';
+import { supabase } from '../../lib/supabase';
 
+const fallbackImage = 'https://images.stockcake.com/public/7/d/e/7de62cd2-e218-47a9-9532-c1fe87686474_medium/city-night-contemplation-stockcake.jpg';
 const fechaActual = new Date().toISOString().slice(0, 10);
 
 const CrearArticulo = () => {
@@ -22,7 +22,6 @@ const CrearArticulo = () => {
 
   const actualizarCampo = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
-
     setFormulario((actual) => ({
       ...actual,
       [name]: value,
@@ -42,29 +41,26 @@ const CrearArticulo = () => {
     setGuardando(true);
 
     try {
-      const respuesta = await fetch(`${apiBaseUrl}/articulos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          titulo: formulario.titulo.trim(),
-          contenido: formulario.contenido.trim(),
-          imagen: formulario.imagen.trim(),
-          fecha: formulario.fecha,
-        }),
-      });
+      const { error: insertError } = await supabase
+        .from('articulos')
+        .insert([
+          {
+            titulo: formulario.titulo.trim(),
+            contenido: formulario.contenido.trim(),
+            imagen: formulario.imagen.trim(),
+            fecha: formulario.fecha,
+          }
+        ]);
 
-      if (!respuesta.ok) {
-        throw new Error('Error en el POST');
-      }
+      if (insertError) throw insertError;
 
       setExito('Artículo publicado correctamente. Redirigiendo a la portada...');
-
       window.setTimeout(() => {
         navigate('/articulos');
       }, 900);
     } catch (submitError) {
       console.error('Error creando articulo:', submitError);
-      setError('No se pudo crear el artículo. Revisa el endpoint POST de la API.');
+      setError('No se pudo crear el artículo en Supabase. Revisa la conexión y las políticas de RLS.');
     } finally {
       setGuardando(false);
     }
@@ -79,7 +75,7 @@ const CrearArticulo = () => {
             <p className="text-xs uppercase tracking-[0.3em] text-blue-500 font-semibold">Sala de redacción</p>
             <h1 className="mt-3 text-4xl font-bold text-gray-900">Publica una nota con imagen y fecha</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-              El formulario envía el artículo a la API. Completa los cuatro campos principales y publica directamente en la portada.
+              Este artículo se guardará directamente en tu base de datos de Supabase.
             </p>
           </div>
         </div>
@@ -106,7 +102,7 @@ const CrearArticulo = () => {
                 value={formulario.titulo}
                 onChange={actualizarCampo}
                 placeholder="Ej. La selección define su lista final"
-                className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
               />
             </label>
 
@@ -117,7 +113,7 @@ const CrearArticulo = () => {
                 name="fecha"
                 value={formulario.fecha}
                 onChange={actualizarCampo}
-                className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
               />
             </label>
           </div>
@@ -130,7 +126,7 @@ const CrearArticulo = () => {
               value={formulario.imagen}
               onChange={actualizarCampo}
               placeholder="https://..."
-              className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
             />
           </label>
 
@@ -142,7 +138,7 @@ const CrearArticulo = () => {
               value={formulario.contenido}
               onChange={actualizarCampo}
               placeholder="Desarrolla la noticia, el análisis o la crónica."
-              className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
             />
           </label>
 
@@ -162,7 +158,7 @@ const CrearArticulo = () => {
                 setError('');
                 setExito('');
               }}
-              className="rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+              className="rounded-full border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
             >
               Limpiar formulario
             </button>
